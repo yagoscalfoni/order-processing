@@ -6,12 +6,13 @@ on:
 jobs:
   repository-benchmarks:
     runs-on: ubuntu-latest
+
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
-          SA_PASSWORD: Your_password123
           ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Your_password123
         ports:
           - 1433:1433
         options: >-
@@ -20,36 +21,57 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
+      # Opcional, mas ajuda a evitar race condition em SQL pesado
+      - name: Wait for SQL Server to be ready
+        run: |
+          echo "Waiting 15 seconds to ensure SQL Server is fully ready..."
+          sleep 15
+
       - name: Initialize database schema
         run: |
-          docker run --rm --network host \
-            -v "${{ github.workspace }}:/workspace" \
-            mcr.microsoft.com/mssql-tools18 \
-            /opt/mssql-tools18/bin/sqlcmd \
-            -S localhost -U sa -P Your_password123 \
-            -i /workspace/db/init/001_create_schema.sql
+          docker run --rm \
+            --network "${{ job.services.sqlserver.network }}" \
+            -v "${{ github.workspace }}/db/init:/scripts" \
+            mcr.microsoft.com/mssql-tools:latest \
+            /opt/mssql-tools/bin/sqlcmd \
+            -S sqlserver \
+            -U sa \
+            -P Your_password123 \
+            -i /scripts/001_create_schema.sql
 
       - name: Run repository benchmarks
         env:
-          ConnectionStrings__Orders: "Server=localhost,1433;Database=orders;User Id=sa;Password=Your_password123;TrustServerCertificate=True"
+          ConnectionStrings__Orders: >
+            Server=sqlserver,1433;
+            Database=orders;
+            User Id=sa;
+            Password=Your_password123;
+            TrustServerCertificate=True
         run: dotnet run -c Release --project src/OrderProcessing.Benchmarks
 
       - name: Publish benchmark summary
         if: always()
         run: |
           echo "## BenchmarkDotNet Results" >> "$GITHUB_STEP_SUMMARY"
-          find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts -name "*.md" -maxdepth 3 -print0 | while IFS= read -r -d '' file; do
-            echo "\n### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
-            cat "$file" >> "$GITHUB_STEP_SUMMARY"
-          done
+          if [ -d "src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts" ]; then
+            find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts \
+              -name "*.md" -maxdepth 3 -print0 | while IFS= read -r -d '' file; do
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
+                cat "$file" >> "$GITHUB_STEP_SUMMARY"
+              done
+          else
+            echo "No BenchmarkDotNet artifacts found." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload benchmark artifacts
         if: always()
