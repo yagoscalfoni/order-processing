@@ -17,6 +17,7 @@ public sealed class OrderDbContext : DbContext
         {
             entity.ToTable("orders");
             entity.HasKey(order => order.Id);
+            entity.Property(order => order.CustomerId).HasColumnName("customer_id");
             entity.Property(order => order.CreatedAtUtc).HasColumnName("created_at_utc");
             entity.Property(order => order.TotalAmount).HasColumnName("total_amount");
             entity.Property(order => order.Currency).HasColumnName("currency");
@@ -29,6 +30,7 @@ public sealed class OrderDbContext : DbContext
         {
             entity.ToTable("order_items");
             entity.HasKey(item => item.Id);
+            entity.Property(item => item.OrderId).HasColumnName("order_id");
             entity.Property(item => item.Sku).HasColumnName("sku");
             entity.Property(item => item.UnitPrice).HasColumnName("unit_price");
         });
