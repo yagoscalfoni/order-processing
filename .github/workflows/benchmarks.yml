@@ -30,17 +30,17 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      # Debug defensivo – pode remover depois
+      # Debug defensivo – pode remover depois que estabilizar
       - name: DEBUG – show workspace structure
         run: |
-          echo "GITHUB WORKSPACE:"
-          pwd
-          echo ""
-          echo "Listing root:"
+          echo "Root:"
           ls -la
           echo ""
-          echo "Listing OrderProcessing/db/init:"
+          echo "OrderProcessing/db/init:"
           ls -la OrderProcessing/db/init
+          echo ""
+          echo "Benchmarks project:"
+          ls -la OrderProcessing/src/OrderProcessing.Benchmarks
 
       - name: Initialize database schema
         run: |
@@ -63,14 +63,16 @@ jobs:
             User Id=sa;
             Password=Your_password123;
             TrustServerCertificate=True
-        run: dotnet run -c Release --project src/OrderProcessing.Benchmarks
+        run: |
+          dotnet run -c Release \
+            --project OrderProcessing/src/OrderProcessing.Benchmarks/OrderProcessing.Benchmarks.csproj
 
       - name: Publish benchmark summary
         if: always()
         run: |
           echo "## BenchmarkDotNet Results" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts" ]; then
-            find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts \
+          if [ -d "OrderProcessing/src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts" ]; then
+            find OrderProcessing/src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts \
               -name "*.md" -print0 | while IFS= read -r -d '' file; do
                 echo "" >> "$GITHUB_STEP_SUMMARY"
                 echo "### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
@@ -85,4 +87,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: benchmarkdotnet-artifacts
-          path: src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts
+          path: OrderProcessing/src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts
