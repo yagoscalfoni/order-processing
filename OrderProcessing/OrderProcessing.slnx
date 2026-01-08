@@ -1,1 +1,6 @@
-<Solution />
+<Solution>
+  <Folder Name="/Itens de Solução/">
+    <File Path="docker-compose.yml" />
+  </Folder>
+  <Project Path="src/OrderProcessing.Api/OrderProcessing.Api.csproj" />
+</Solution>
