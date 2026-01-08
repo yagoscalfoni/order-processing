@@ -6,16 +6,17 @@ on:
 jobs:
   repository-benchmarks:
     runs-on: ubuntu-latest
+
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
-          SA_PASSWORD: Your_password123
           ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Your_password123
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Your_password123 -Q 'SELECT 1'"
+          --health-cmd "bash -c 'cat < /dev/null > /dev/tcp/localhost/1433'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -29,15 +30,19 @@ jobs:
 
       - name: Initialize database schema
         run: |
-          docker run --rm --network host \
-            -v "${{ github.workspace }}:/workspace" \
-            mcr.microsoft.com/mssql-tools \
-            /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Your_password123 \
-            -i /workspace/db/init/001_create_schema.sql
+          docker run --rm \
+            -v "${{ github.workspace }}/db/init:/scripts" \
+            --network host \
+            mcr.microsoft.com/mssql-tools18 \
+            /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost \
+            -U sa \
+            -P Your_password123 \
+            -i /scripts/001_create_schema.sql
 
       - name: Run repository benchmarks
         env:
-          ConnectionStrings__Orders: "Server=localhost,1433;Database=orders;User Id=sa;Password=Your_password123;TrustServerCertificate=True"
+          ConnectionStrings__Orders: Server=localhost,1433;Database=orders;User Id=sa;Password=Your_password123;TrustServerCertificate=True
         run: dotnet run -c Release --project src/OrderProcessing.Benchmarks
 
       - name: Publish benchmark summary
