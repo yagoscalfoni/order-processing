@@ -8,9 +8,9 @@ public sealed class DapperOrderRepository : IOrderRepository
 {
     private readonly string _connectionString;
 
-    public DapperOrderRepository(IConfiguration configuration)
+    public DapperOrderRepository(string connectionString)
     {
-        _connectionString = configuration.GetConnectionString("Orders")
+        _connectionString = connectionString
             ?? throw new InvalidOperationException("Missing Orders connection string.");
     }
 

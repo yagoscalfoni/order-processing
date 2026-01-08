@@ -9,9 +9,9 @@ public sealed class StoredProcedureOrderRepository : IOrderRepository
 {
     private readonly string _connectionString;
 
-    public StoredProcedureOrderRepository(IConfiguration configuration)
+    public StoredProcedureOrderRepository(string connectionString)
     {
-        _connectionString = configuration.GetConnectionString("Orders")
+        _connectionString = connectionString
             ?? throw new InvalidOperationException("Missing Orders connection string.");
     }
 
