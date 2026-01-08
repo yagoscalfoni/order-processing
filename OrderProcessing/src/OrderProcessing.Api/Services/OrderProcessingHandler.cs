@@ -166,6 +166,10 @@ public sealed class SimulatedTaxClient : ITaxClient
         ["USD"] = 0.07m
     };
 
+    public SimulatedTaxClient(HttpClient _)
+    {
+    }
+
     public ValueTask<Money> GetTaxAsync(Money subtotal, CancellationToken ct)
     {
         // Exemplo de ValueTask: o cálculo é síncrono e trivial, sem necessidade de Task.
