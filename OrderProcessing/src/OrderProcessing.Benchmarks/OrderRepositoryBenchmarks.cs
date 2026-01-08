@@ -15,7 +15,7 @@ public class OrderRepositoryBenchmarks
     // BenchmarkDotNet roda em processo isolado
     // A connection string PRECISA ser explícita
     private const string OrdersConnectionString =
-        "Server=sqlserver,1433;" +
+        "Server=localhost,1433;" +
         "Database=orders;" +
         "User Id=sa;" +
         "Password=Your_password123;" +
