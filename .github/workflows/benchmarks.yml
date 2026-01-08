@@ -22,7 +22,7 @@ jobs:
           --health-retries 10
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -30,11 +30,8 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      # Opcional, mas ajuda a evitar race condition em SQL pesado
-      - name: Wait for SQL Server to be ready
-        run: |
-          echo "Waiting 15 seconds to ensure SQL Server is fully ready..."
-          sleep 15
+      - name: Wait for SQL Server
+        run: sleep 15
 
       - name: Initialize database schema
         run: |
@@ -48,7 +45,7 @@ jobs:
             -P Your_password123 \
             -i /scripts/001_create_schema.sql
 
-      - name: Run repository benchmarks
+      - name: Run benchmarks
         env:
           ConnectionStrings__Orders: >
             Server=sqlserver,1433;
@@ -64,13 +61,11 @@ jobs:
           echo "## BenchmarkDotNet Results" >> "$GITHUB_STEP_SUMMARY"
           if [ -d "src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts" ]; then
             find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts \
-              -name "*.md" -maxdepth 3 -print0 | while IFS= read -r -d '' file; do
+              -name "*.md" -print0 | while IFS= read -r -d '' file; do
                 echo "" >> "$GITHUB_STEP_SUMMARY"
                 echo "### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
                 cat "$file" >> "$GITHUB_STEP_SUMMARY"
               done
-          else
-            echo "No BenchmarkDotNet artifacts found." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload benchmark artifacts
