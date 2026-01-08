@@ -30,7 +30,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Orders: Server=db,1433;Database=orders;User Id=sa;Password=Your_password123;TrustServerCertificate=True
     depends_on:
-      - db
-      - db-init
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     ports:
       - "8080:8080"
