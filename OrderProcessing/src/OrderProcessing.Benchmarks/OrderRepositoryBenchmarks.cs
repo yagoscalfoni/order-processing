@@ -11,7 +11,7 @@ using OrderProcessing.Api.Services;
 namespace OrderProcessing.Benchmarks;
 
 [MemoryDiagnoser]
-public sealed class OrderRepositoryBenchmarks
+public class OrderRepositoryBenchmarks
 {
     private readonly OrderMetricsChannel _metricsChannel = new();
     private readonly InventoryGate _inventoryGate = new();
