@@ -1,0 +1,57 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  repository-benchmarks:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: Your_password123
+          ACCEPT_EULA: "Y"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Your_password123 -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Initialize database schema
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}:/workspace" \
+            mcr.microsoft.com/mssql-tools \
+            /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Your_password123 \
+            -i /workspace/db/init/001_create_schema.sql
+
+      - name: Run repository benchmarks
+        env:
+          ConnectionStrings__Orders: "Server=localhost,1433;Database=orders;User Id=sa;Password=Your_password123;TrustServerCertificate=True"
+        run: dotnet run -c Release --project src/OrderProcessing.Benchmarks
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          echo "## BenchmarkDotNet Results" >> "$GITHUB_STEP_SUMMARY"
+          find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts -name "*.md" -maxdepth 3 -print0 | while IFS= read -r -d '' file; do
+            echo "\n### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
+            cat "$file" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarkdotnet-artifacts
+          path: src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts
