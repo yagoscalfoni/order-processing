@@ -22,7 +22,7 @@ jobs:
           --health-retries 10
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -30,19 +30,59 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: DEBUG – show docker command
+      # Debug defensivo – pode remover depois
+      - name: DEBUG – show workspace structure
         run: |
-          echo "USING /opt/mssql-tools/bin/sqlcmd"
-          echo "NO --network host"
+          echo "GITHUB WORKSPACE:"
+          pwd
+          echo ""
+          echo "Listing root:"
+          ls -la
+          echo ""
+          echo "Listing OrderProcessing/db/init:"
+          ls -la OrderProcessing/db/init
 
       - name: Initialize database schema
         run: |
           docker run --rm \
             --network "${{ job.services.sqlserver.network }}" \
-            -v "${{ github.workspace }}/db/init:/scripts" \
+            -v "${{ github.workspace }}/OrderProcessing/db/init:/scripts" \
             mcr.microsoft.com/mssql-tools:latest \
             /opt/mssql-tools/bin/sqlcmd \
             -S sqlserver \
             -U sa \
             -P Your_password123 \
+            -d master \
             -i /scripts/001_create_schema.sql
+
+      - name: Run repository benchmarks
+        env:
+          ConnectionStrings__Orders: >
+            Server=sqlserver,1433;
+            Database=orders;
+            User Id=sa;
+            Password=Your_password123;
+            TrustServerCertificate=True
+        run: dotnet run -c Release --project src/OrderProcessing.Benchmarks
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          echo "## BenchmarkDotNet Results" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts" ]; then
+            find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts \
+              -name "*.md" -print0 | while IFS= read -r -d '' file; do
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
+                cat "$file" >> "$GITHUB_STEP_SUMMARY"
+              done
+          else
+            echo "No BenchmarkDotNet artifacts found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarkdotnet-artifacts
+          path: src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts
