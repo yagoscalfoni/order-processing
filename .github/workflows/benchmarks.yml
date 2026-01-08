@@ -30,8 +30,10 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Wait for SQL Server
-        run: sleep 15
+      - name: DEBUG – show docker command
+        run: |
+          echo "USING /opt/mssql-tools/bin/sqlcmd"
+          echo "NO --network host"
 
       - name: Initialize database schema
         run: |
@@ -44,33 +46,3 @@ jobs:
             -U sa \
             -P Your_password123 \
             -i /scripts/001_create_schema.sql
-
-      - name: Run benchmarks
-        env:
-          ConnectionStrings__Orders: >
-            Server=sqlserver,1433;
-            Database=orders;
-            User Id=sa;
-            Password=Your_password123;
-            TrustServerCertificate=True
-        run: dotnet run -c Release --project src/OrderProcessing.Benchmarks
-
-      - name: Publish benchmark summary
-        if: always()
-        run: |
-          echo "## BenchmarkDotNet Results" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts" ]; then
-            find src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts \
-              -name "*.md" -print0 | while IFS= read -r -d '' file; do
-                echo "" >> "$GITHUB_STEP_SUMMARY"
-                echo "### $(basename "$file")" >> "$GITHUB_STEP_SUMMARY"
-                cat "$file" >> "$GITHUB_STEP_SUMMARY"
-              done
-          fi
-
-      - name: Upload benchmark artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmarkdotnet-artifacts
-          path: src/OrderProcessing.Benchmarks/BenchmarkDotNet.Artifacts
