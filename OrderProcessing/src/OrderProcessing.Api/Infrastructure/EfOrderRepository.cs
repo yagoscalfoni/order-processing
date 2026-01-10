@@ -4,7 +4,7 @@ using OrderProcessing.Api.Models;
 
 namespace OrderProcessing.Api.Infrastructure;
 
-public sealed class EfOrderRepository : IOrderRepository
+public sealed class EfOrderRepository : IOrderRepository, IOrderRepositorySync
 {
     private readonly OrderDbContext _dbContext;
 
@@ -38,6 +38,30 @@ public sealed class EfOrderRepository : IOrderRepository
         // ConfigureAwait(false): útil em bibliotecas para evitar deadlocks em contextos
         // de sincronização; em ASP.NET Core o contexto é livre, mas mostramos o padrão.
         await _dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return entity.Id;
+    }
+
+    public long Create(OrderDraft order)
+    {
+        var entity = new OrderEntity
+        {
+            CustomerId = order.CustomerId,
+            CreatedAtUtc = order.CreatedAtUtc,
+            TotalAmount = order.Total.Amount,
+            Currency = order.Total.Currency,
+            Items = order.Lines
+                .Select(line => new OrderItemEntity
+                {
+                    Sku = line.Sku,
+                    Quantity = line.Quantity,
+                    UnitPrice = line.UnitPrice
+                })
+                .ToList()
+        };
+
+        _dbContext.Orders.Add(entity);
+        _dbContext.SaveChanges();
 
         return entity.Id;
     }

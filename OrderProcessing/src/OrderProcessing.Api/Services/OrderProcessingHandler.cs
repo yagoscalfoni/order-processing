@@ -30,6 +30,30 @@ public sealed class OrderProcessingHandler
         IOrderRepository repository,
         CancellationToken ct)
     {
+        return await CreateOrderInternalAsync(
+                request,
+                (draft, token) => repository.CreateAsync(draft, token),
+                ct)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<OrderCreatedResponse> CreateOrderAsyncWithSyncRepository(
+        OrderRequest request,
+        IOrderRepositorySync repository,
+        CancellationToken ct)
+    {
+        return await CreateOrderInternalAsync(
+                request,
+                (draft, _) => ValueTask.FromResult(repository.Create(draft)),
+                ct)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<OrderCreatedResponse> CreateOrderInternalAsync(
+        OrderRequest request,
+        Func<OrderDraft, CancellationToken, ValueTask<long>> createOrder,
+        CancellationToken ct)
+    {
         var validationErrors = new List<string>();
         await foreach (var error in ValidateAsync(request, ct).ConfigureAwait(false))
         {
@@ -58,7 +82,7 @@ public sealed class OrderProcessingHandler
 
             var draft = new OrderDraft(request.CustomerId, createdAt, grandTotal, normalizedLines);
 
-            var orderId = await repository.CreateAsync(draft, ct).ConfigureAwait(false);
+            var orderId = await createOrder(draft, ct).ConfigureAwait(false);
 
             _metricsChannel.TryWrite(new OrderMetric(orderId, grandTotal.Amount, createdAt));
 

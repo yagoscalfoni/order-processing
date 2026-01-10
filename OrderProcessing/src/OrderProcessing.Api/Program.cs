@@ -68,6 +68,60 @@ app.MapPost("/orders/sp", async (
     return Results.Ok(await handler.CreateOrderAsync(request, repository, ct));
 });
 
+app.MapPost("/orders/ef/async-syncdb", async (
+    OrderRequest request,
+    OrderProcessingHandler handler,
+    EfOrderRepository repository,
+    CancellationToken ct) =>
+{
+    return Results.Ok(await handler.CreateOrderAsyncWithSyncRepository(request, repository, ct));
+});
+
+app.MapPost("/orders/dapper/async-syncdb", async (
+    OrderRequest request,
+    OrderProcessingHandler handler,
+    DapperOrderRepository repository,
+    CancellationToken ct) =>
+{
+    return Results.Ok(await handler.CreateOrderAsyncWithSyncRepository(request, repository, ct));
+});
+
+app.MapPost("/orders/sp/async-syncdb", async (
+    OrderRequest request,
+    OrderProcessingHandler handler,
+    StoredProcedureOrderRepository repository,
+    CancellationToken ct) =>
+{
+    return Results.Ok(await handler.CreateOrderAsyncWithSyncRepository(request, repository, ct));
+});
+
+app.MapPost("/orders/ef/sync-asyncdb", (
+    OrderRequest request,
+    OrderProcessingHandler handler,
+    EfOrderRepository repository,
+    CancellationToken ct) =>
+{
+    return Results.Ok(handler.CreateOrderAsync(request, repository, ct).GetAwaiter().GetResult());
+});
+
+app.MapPost("/orders/dapper/sync-asyncdb", (
+    OrderRequest request,
+    OrderProcessingHandler handler,
+    DapperOrderRepository repository,
+    CancellationToken ct) =>
+{
+    return Results.Ok(handler.CreateOrderAsync(request, repository, ct).GetAwaiter().GetResult());
+});
+
+app.MapPost("/orders/sp/sync-asyncdb", (
+    OrderRequest request,
+    OrderProcessingHandler handler,
+    StoredProcedureOrderRepository repository,
+    CancellationToken ct) =>
+{
+    return Results.Ok(handler.CreateOrderAsync(request, repository, ct).GetAwaiter().GetResult());
+});
+
 app.Run();
 
 // Observação importante sobre async void:
