@@ -5,7 +5,7 @@ using OrderProcessing.Api.Models;
 
 namespace OrderProcessing.Api.Infrastructure;
 
-public sealed class StoredProcedureOrderRepository : IOrderRepository
+public sealed class StoredProcedureOrderRepository : IOrderRepository, IOrderRepositorySync
 {
     private readonly string _connectionString;
 
@@ -41,6 +41,33 @@ public sealed class StoredProcedureOrderRepository : IOrderRepository
         command.Parameters.Add("@items", SqlDbType.NVarChar, -1).Value = itemsJson;
 
         var result = await command.ExecuteScalarAsync(ct).ConfigureAwait(false);
+        return Convert.ToInt64(result);
+    }
+
+    public long Create(OrderDraft order)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+
+        using var command = new SqlCommand("create_order_sp", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.Parameters.AddWithValue("@customer_id", order.CustomerId);
+        command.Parameters.AddWithValue("@currency", order.Total.Currency);
+        command.Parameters.AddWithValue("@total", order.Total.Amount);
+
+        var itemsJson = JsonSerializer.Serialize(order.Lines.Select(line => new
+        {
+            sku = line.Sku,
+            quantity = line.Quantity,
+            unit_price = line.UnitPrice
+        }));
+
+        command.Parameters.Add("@items", SqlDbType.NVarChar, -1).Value = itemsJson;
+
+        var result = command.ExecuteScalar();
         return Convert.ToInt64(result);
     }
 }
